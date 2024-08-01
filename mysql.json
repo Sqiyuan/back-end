@@ -1,0 +1,8 @@
+{
+  "host":"39.105.32.182",
+  "user":"bmanager",
+  "password":"123456",
+  "database":"bmanager",
+  "port":3306,
+  "charset":"utf8"
+}
