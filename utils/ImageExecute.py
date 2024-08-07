@@ -88,7 +88,7 @@ def send_post_request(image_base64):
         response = requests.post(url, data=data)
         # # 打印响应信息
         # print("Status code:", response.status_code)
-        # print("Response text:", response.text)
+        # print("docker识别结果:", response.text)
         return response
     except Exception as e:
         print("Error:", e)
@@ -117,34 +117,47 @@ def is_chinese_char(char):
 
 
 def getSingleBookResult(http_json):
-    """分析http返回的数据，返回该数的[标签数字，前七个字符]"""
-    charatcter = ''  # 前七个字符
-    num_str = ''  # 标签数字字符串
-    lable_number = -1  # 标签数字
-    character_count = 0  # 已收集的字符数
+    """docker识别图片"""
+    # 定义一个空列表用于存储每个字符
+    result = []
 
-    for locate, element, conf in http_json['data']['raw_out']:
-        if conf > 0.75 and character_count < 7:
-            # print(element, conf)
-            # 判断字符是否为中文
-            if is_chinese_char(element):
-                charatcter += element
-                character_count += 1
-        # 若置信度大于0.8，尝试提取数字标签
-        if conf > 0.8:
-            for i in element:
-                if i.isdigit():
-                    num_str += i
-                else:
-                    break
-            # 若数字标签长度大于1，尝试转化为整数
-            if (len(num_str) > 1):
-                try:
-                    lable_number = int(num_str)
-                except ValueError as e:
-                    lable_number = -1
+    # 遍历HTTP JSON响应中的原始输出数据
+    if 'raw_out' in http_json:
+        for locate, element, conf in http_json['raw_out']:
+            if conf > 0.7:
+                result.extend(element)
+    else:
+        print("Missing 'raw_out' key in the JSON.")
+    print("docker识别图片:", result)
+    return result
 
-    return [lable_number, charatcter]
+    # """分析http返回的数据，返回该数的[标签数字，前七个字符]"""
+    # charatcter = ''  # 前七个字符
+    # num_str = ''  # 标签数字字符串
+    # lable_number = -1  # 标签数字
+    # character_count = 0  # 已收集的字符数
+    # for locate, element, conf in http_json['data']['raw_out']:
+    #     if conf > 0.75 and character_count < 7:
+    #         # print(element, conf)
+    #         # 判断字符是否为中文
+    #         if is_chinese_char(element):
+    #             charatcter += element
+    #             character_count += 1
+    #     # 若置信度大于0.8，尝试提取数字标签
+    #     if conf > 0.8:
+    #         for i in element:
+    #             if i.isdigit():
+    #                 num_str += i
+    #             else:
+    #                 break
+    #         # 若数字标签长度大于1，尝试转化为整数
+    #         if (len(num_str) > 1):
+    #             try:
+    #                 lable_number = int(num_str)
+    #             except ValueError as e:
+    #                 lable_number = -1
+
+    # return [lable_number, charatcter]
 
 
 def draw_bounding_box(image_path, errors_box, question_box, output_path):
@@ -237,6 +250,10 @@ def wholeProcess():
     # 清理旧的运行目录
     if os.path.exists('./runs'):
         shutil.rmtree('./runs')
+    if os.path.exists('./hsv'):
+        shutil.rmtree('./hsv')
+    if not os.path.exists('./hsv'):
+        os.mkdir('./hsv')
     # 执行预处理步骤
     dict_coordinate_data, sorted_coordinate_dicts, removed_id_dicts = preProcess()
 
@@ -251,7 +268,8 @@ def wholeProcess():
                 path = seq_to_filepath(name, key, result_dir)   # 构建文件路径
                 if os.path.exists(path):
                     all_book_result_in_list_dict[key] = send_post_request(
-                        image_to_base64(path)
+                        #整合hsv分割书标，将书脊路径传入后保存书标并返回路径
+                        image_to_base64(hsv_get(path))
                     ).json()  # 发送请求并获取响应JSON  存储识别结果
                     # print('finish ' + str(key))
             all_book_result_in_dict[name] = all_book_result_in_list_dict  # 将单个文件的识别结果加入总结果字典
@@ -262,51 +280,80 @@ def wholeProcess():
     bookDao.close()
     # 检查识别结果并分类
     for name, list_dict in all_book_result_in_dict.items():
-        last_number = -1
-        result_with_error = []  # 存储当前文件中存在错误的ID
-        result_with_question = []  # 存储当前文件中存在疑问的ID
+        result_with_error = []
+        ascii_results = []
 
-        for id, info in list_dict.items():
-            this_number_str, character = getSingleBookResult(info)  # 提取单个书籍的编号和字符信息
-            try:
-                this_number = int(this_number_str)  # 尝试转换编号为整数
-            except ValueError as e:
-                this_number = -1  # 若转换失败，设置为-1
-            
-            this_number = findLabelFromName(resultSet, character)  # 从数据库中查找标签
-
-            print(str(this_number), character)
-            if this_number == -1:
-                result_with_question.append(id)  # 若未找到标签，记录为疑问
-                last_number = this_number
-                continue
-            elif last_number == -1:
-                last_number = this_number
-                continue
-            elif this_number == last_number or this_number == last_number + 1:
-                pass  # 连续编号或相邻编号，不做处理
+        # 遍历字典中的键值对并存储 ASCII 码结果
+        for id, info_dict in list_dict.items():
+            if 'data' in info_dict:
+                data = info_dict['data']
+                # 获取当前书的 ASCII 码结果
+                current_ascii = [ord(c) for c in getSingleBookResult(data)]
+                ascii_results.append((id, current_ascii))
             else:
-                result_with_error.append(id)  # 编号不连续且非相邻，记录为错误
+                # 如果 data 不存在，继续下一项
+                continue
 
-            # if label_number == -1:
-            # 更新last_number
-            last_number = this_number
+        # 循环结束后，依次比较相邻书籍的 ASCII 码顺序
+        for i in range(1, len(ascii_results)):
+            prev_id, prev_ascii = ascii_results[i - 1]
+            current_id, current_ascii = ascii_results[i]
+
+            # 检查是否有顺序错位
+            if any(current < prev for current, prev in zip(current_ascii, prev_ascii)):
+                result_with_error.append(current_id)
+            elif i < len(ascii_results) - 1:
+                _, next_ascii = ascii_results[i + 1]
+                if any(current > next for current, next in zip(current_ascii, next_ascii)):
+                    result_with_error.append(current_id)
+        
+        # 此时可以对 result_with_error 进行进一步处理
 
 
-        results_with_question[name] = result_with_question
+        
+             
+
+        # for id, info in list_dict.items():
+            # this_number_str, character = getSingleBookResult(info)  # 提取单个书籍的编号和字符信息
+            # try:
+            #     this_number = int(this_number_str)  # 尝试转换编号为整数
+            # except ValueError as e:
+            #     this_number = -1  # 若转换失败，设置为-1
+            
+            # this_number = findLabelFromName(resultSet, character)  # 从数据库中查找标签
+
+            # print(str(this_number), character)
+            # if this_number == -1:
+            #     result_with_question.append(id)  # 若未找到标签，记录为疑问
+            #     last_number = this_number
+            #     continue
+            # elif last_number == -1:
+            #     last_number = this_number
+            #     continue
+            # elif this_number == last_number or this_number == last_number + 1:
+            #     pass  # 连续编号或相邻编号，不做处理
+            # else:
+            #     result_with_error.append(id)  # 编号不连续且非相邻，记录为错误
+
+            # # if label_number == -1:
+            # # 更新last_number
+            # last_number = this_number
+
+
+        # results_with_question[name] = result_with_question
         results_with_error[name] = result_with_error
 
 
     print('rewrite to the img')
 
     # 重绘图像，标记出存在疑问和错误的边界框
-    for name in results_with_question.keys():
+    for name in results_with_error.keys():
         err_boxes = [dict_coordinate_data[name][index] for index in results_with_error[name]]
-        ques_boxes = [dict_coordinate_data[name][index] for index in results_with_question[name]]
+        # ques_boxes = [dict_coordinate_data[name][index] for index in results_with_question[name]]
         img_path = './img/{}.jpg'.format(name)
         output_path = './output/{}.jpg'.format(name)
 
-        draw_bounding_box(img_path, err_boxes, ques_boxes, output_path)
+        draw_bounding_box(img_path, err_boxes, err_boxes, output_path)
     # 创建完成标志目录，并清理临时图像目录
     os.mkdir('finish.flag')
     shutil.rmtree('./img')
@@ -329,6 +376,8 @@ def findBookProces(book_name):
     # 清理旧的运行目录
     if os.path.exists('./runs'):
         shutil.rmtree('./runs')
+    if os.path.exists('./hsv'):
+        shutil.rmtree('./hsv')
     # 执行预处理步骤
     dict_coordinate_data, sorted_coordinate_dicts, removed_id_dicts = preProcess()
 
@@ -449,13 +498,19 @@ def hsv_get(image_path):
         # 提取两条红线之间的区域
         between_region = image[y_top:y_bottom, :]
 
-        # 保存结果
-        # cv2.imwrite('out/between_regions_hsv.jpg', between_region)
-        shubiao = between_region
+        #分割图片路径获得图片名称
+        lujing = image_path.split('/')
+        name = lujing[len(lujing)-1]
 
-        print("两条最长红线之间的区域分割完成并保存")
+        # 保存结果
+        cv2.imwrite('./hsv/' + name, between_region)
+        # shubiao = between_region
+
+        # print("两条最长红线之间的区域分割完成并保存")
+        return './hsv/' + name
     else:
         print("未找到红线区域，请调整阈值或检查图像")
+        return 0
 
 if __name__ == '__main__':
     findBookProces(book_name)
