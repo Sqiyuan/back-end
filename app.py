@@ -52,13 +52,12 @@ def process():
     # 创建输出目录
     os.mkdir('output')
 
-    # 如果工作目录下无待处理文件，返回'0'表示无数据
-    if len(os.listdir(dir)) == 0:
-        return json.dumps('0')
-
     # 启动处理整个过程的线程
     thread = Thread(target=wholeProcess)
     thread.start()
+    # 如果工作目录下无待处理文件，返回'0'表示无数据
+    if len(os.listdir(dir)) == 0:
+        return json.dumps('0')
     # 返回'1'表示处理线程已启动
     return json.dumps('1')
 

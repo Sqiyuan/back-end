@@ -76,7 +76,7 @@ def send_post_request(image_base64):
     携带Base64编码的图像数据
     """
     # 请求的URL
-    url = "http://127.0.0.1:8080/api/tr-run/"
+    url = "http://127.0.0.1:8089/api/tr-run/"
 
     # 请求参数，包含图片的 base64 值
     data = {
@@ -190,7 +190,7 @@ def preProcess():
     removed_id_dicts = dict()
     sorted_coordinate_dicts = dict()
     dict_coordinate_data = dict()
-    results = model.predict(source=dir, save_crop=True)   # 调用模型预测，保存裁剪结果
+    results = model.predict(source=dir, save_crop=True, project='./runs/segment/')   # 调用模型预测，保存裁剪结果
 
     # 遍历目录结构，同步处理预测结果和文件名
     for root, dirs, files in os.walk(dir):
@@ -450,9 +450,10 @@ def hsv_get(image_path):
         between_region = image[y_top:y_bottom, :]
 
         # 保存结果
-        cv2.imwrite('out/between_regions_hsv.jpg', between_region)
+        # cv2.imwrite('out/between_regions_hsv.jpg', between_region)
+        shubiao = between_region
 
-        print("两条最长红线之间的区域分割完成并保存为 between_regions_hsv.jpg")
+        print("两条最长红线之间的区域分割完成并保存")
     else:
         print("未找到红线区域，请调整阈值或检查图像")
 
