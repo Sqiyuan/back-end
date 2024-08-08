@@ -4,6 +4,8 @@ from controller.BookController import bookController
 from controller.UniversityController import universityController
 
 from utils.ImageExecute import *
+from utils.OCR import *
+from utils.Process import *
 from PIL import Image
 from threading import Thread
 from dao.UserDao import UserDao
@@ -72,12 +74,12 @@ def findbookprocess():
         shutil.rmtree('output')
     # 创建输出目录
     os.mkdir('output')
-    # 如果工作目录下无待处理文件，返回'0'表示无数据
-    if len(os.listdir(dir)) == 0:
-        return json.dumps('0')
     # 启动针对指定书名的查找过程线程，传入全局变量`book_name`
     thread = Thread(target=findBookProces, args=(book_name,))
     thread.start()
+    # 如果工作目录下无待处理文件，返回'0'表示无数据
+    if len(os.listdir(dir)) == 0:
+        return json.dumps('0')
     # 返回'1'表示查找线程已启动
     return json.dumps('1')
 
