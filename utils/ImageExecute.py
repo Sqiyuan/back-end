@@ -2,12 +2,6 @@ import base64
 from dao.BaseDao import BaseDao
 import cv2
 
-dir = './img/'  # 待处理图像目录
-result_dir = './runs/segment/predict/crops/book/'   # 预测结果保存目录
-max_width = 400 # 图像最大宽度限制
-book_name = '开始写吧'
-
-
 class BookDao(BaseDao):
     """
     职位数据管理数据库操作类

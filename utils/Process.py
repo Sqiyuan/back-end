@@ -4,7 +4,13 @@ from ultralytics import YOLO
 from utils.ImageExecute import *
 from utils.HSV import *
 from utils.OCR import *
+from utils.Pic_pre import *
 
+dir = './img/'
+pre_dir = './img/pre/'  # 待处理图像目录
+result_dir = './runs/segment/predict/crops/book/'   # 预测结果保存目录
+max_width = 400 # 图像最大宽度限制
+book_name = '开始写吧'
 model = YOLO('./ex_best.pt')    # 实例化YOLO模型，加载预训练权重
 
 def preProcess():
@@ -19,6 +25,16 @@ def preProcess():
 
    removed_id_dicts (dict): 以文件名（不含后缀）为键，移除的ID列表为值的字典。
     """
+    # 清理旧的运行目录
+    if os.path.exists('./runs'):
+        shutil.rmtree('./runs')
+    if os.path.exists('./hsv'):
+        shutil.rmtree('./hsv')
+    if not os.path.exists('./hsv'):
+        os.mkdir('./hsv')
+    #预处理图片
+    # process_folder_images(pre_dir)
+    print('预处理...')
     # 初始化变量
     removed_id_dicts = dict()
     sorted_coordinate_dicts = dict()
@@ -63,13 +79,7 @@ def wholeProcess():
     results_with_question = dict()  # 存储存在疑问的结果
     results_with_error = dict()  # 存储存在错误的结果
     all_book_result_in_dict = dict()  # 存储所有书籍识别结果
-    # 清理旧的运行目录
-    if os.path.exists('./runs'):
-        shutil.rmtree('./runs')
-    if os.path.exists('./hsv'):
-        shutil.rmtree('./hsv')
-    if not os.path.exists('./hsv'):
-        os.mkdir('./hsv')
+    
     # 执行预处理步骤
     dict_coordinate_data, sorted_coordinate_dicts, removed_id_dicts = preProcess()
 
@@ -145,11 +155,7 @@ def findBookProces(book_name):
     results_with_error = dict()  # 存储存在错误的结果
     results_with_right_name = dict()  # 存储与指定书名部分匹配的结果
     all_book_result_in_dict = dict()  # 存储所有书籍识别结果
-    # 清理旧的运行目录
-    if os.path.exists('./runs'):
-        shutil.rmtree('./runs')
-    if os.path.exists('./hsv'):
-        shutil.rmtree('./hsv')
+
     # 执行预处理步骤
     dict_coordinate_data, sorted_coordinate_dicts, removed_id_dicts = preProcess()
 
@@ -220,5 +226,5 @@ def findBookProces(book_name):
     # 创建完成标志目录
     os.mkdir('finish.flag')
     # 删除临时图像目录
-    shutil.rmtree('./img')
+    # shutil.rmtree('./img')
     return
