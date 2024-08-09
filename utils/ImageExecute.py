@@ -96,3 +96,5 @@ def draw_bounding_box(image_path, errors_box, question_box, output_path):
 
     cv2.imwrite(output_path, image)
 
+if __name__ == '__main__':
+    print(image_to_base64('shuji.jpg'))
