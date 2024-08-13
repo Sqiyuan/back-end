@@ -45,7 +45,6 @@ def preProcess():
     for root, dirs, files in os.walk(dir):
         for r, filename in zip(results, files):
             # 初始化当前文件相关的变量
-
             removed_id = []
             filename_without_suffix = filename.split('.')[-2]
             id_xlabel_dict = dict()
