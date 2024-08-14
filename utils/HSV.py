@@ -2,15 +2,14 @@ import cv2
 import numpy as np
 
 from utils.ImageExecute import image_to_base64
+from utils.OCR import send_post_request
 # from utils.OCR import send_post_request
 # from utils.ImageExecute import image_to_base64
 
-def hsv_get(image_path):
+def hsv_get(image):
     """
     再次分割书脊获得书标区域
     """
-    # 读取图像
-    image = cv2.imread(image_path)
 
     # 将图像转换为HSV颜色空间
     hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
@@ -26,8 +25,8 @@ def hsv_get(image_path):
     contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
     # 设置上下偏移量
-    y_offset_top = -22
-    y_offset_bottom = 3
+    y_offset_top = -15
+    y_offset_bottom = 10
 
     # 在原始图像上绘制红线区域的轮廓（仅作为示例）
     if contours:
@@ -47,18 +46,7 @@ def hsv_get(image_path):
 
         # 提取两条红线之间的区域
         between_region = image[y_top:y_bottom, :]
-
-        #分割图片路径获得图片名称
-        lujing = image_path.split('/')
-        name = lujing[len(lujing)-1]
-
-        # 保存结果
-        cv2.imwrite('./hsv/' + name, between_region)
-        # shubiao = between_region
-
-        # print("两条最长红线之间的区域分割完成并保存")
-        print('./hsv/' + name)
-        return './hsv/' + name
+        return between_region
     else:
         print("未找到红线区域，请调整阈值或检查图像")
         return 0
@@ -70,7 +58,7 @@ def preprocess_image(image):
     # 增强对比度
     lab = cv2.cvtColor(image, cv2.COLOR_BGR2LAB)
     l, a, b = cv2.split(lab)
-    clahe = cv2.createCLAHE(clipLimit=3.0, tileGridSize=(8, 8))
+    clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(4, 4))
     cl = clahe.apply(l)
     limg = cv2.merge((cl, a, b))
     image = cv2.cvtColor(limg, cv2.COLOR_LAB2BGR)
@@ -83,43 +71,74 @@ def preprocess_image(image):
 
     # 去噪
     denoised_image = cv2.fastNlMeansDenoising(binary_image, None, 30, 7, 21)
+    # # 边缘增强
+    # kernel = np.ones((2, 2), np.uint8)
+    # edges_enhanced = cv2.dilate(denoised_image, kernel, iterations=1)  # 应用膨胀操作增强边缘
 
     return denoised_image
 
+
 def getSingleCallNum(image_path):
     """
-    识别并获取单本书的索书号（多行文本，包括符号“=-:./”）
+    识别并获取单本书的索书号（包括符号“=-:./”）
+    返回ASCII码列表
     """
     # 读取分割后的索书号区域图像
     image = cv2.imread(image_path)
 
-    # 对图像进行预处理
-    preprocessed_image = preprocess_image(image)
-    print("pre_image",preprocessed_image)
-    base_64 = image_to_base64(image_path)
-    print("base64:", base_64)
+    #hsv分割
+    hsv_image = hsv_get(image)
+    #图像处理
+    pre_image = preprocess_image(hsv_image)
+    #z转为base64
+    base_64 = image2base64(pre_image)
+    #OCR识别
+    response = send_post_request(base_64).json()['data']['raw_out']
+    # 创建列表用于保存有效的字符
+    ascii_codes = []
+    chars = []
 
-    # 使用Tesseract进行字符识别，配置为多行文本识别模式
-    config = '--psm 6'  # 允许文本有多个段落
-    recognized_text = pytesseract.image_to_string(gray, config=config)
+    for _, element, conf in response:
+        if conf > 0.8:
+            
+            # 拆分并检查每个字符是否有效
+            for char in element:
+                char = char.upper()#转为大写字母
+                if char.isupper() or char.isdigit() or char in "=-:./":
+                    chars.append(char)
+    print("处理前：",chars)
 
-    # 包含大写字母、数字和指定符号的有效字符集合
-    valid_chars = set("ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789=-:./")
+    # 处理第一个字符
+    if chars and not chars[0].isalpha():
+        # 找到与第一个字符最相似的字母
+        most_similar_char = find_most_similar_char(chars[0])
+        if most_similar_char is not None:
+            chars[0] = most_similar_char
+            print("处理后：",chars)
+    # 将有效字符转换为ASCII码并添加到列表中
+    ascii_codes.extend(ord(c) for c in chars)
+    return ascii_codes
 
-    # 初始化空列表存储每行的有效索书号字符
-    call_number_lines = []
+def find_most_similar_char(char):
+    """
+    寻找与给定字符最相似的大写字母
+    """
+    # 假设的相似度阈值
+    similarity_threshold = 0.5
+    # 假设的字母相似度字典
+    similarity_dict = {
+        '0': ('O', 0.9),
+        '1': ('I', 0.8),
+        '2': ('Z', 0.7),
+        # 其他字符及其相似度
+    }
 
-    # 按行分割识别到的文本，并逐行处理
-    for line in recognized_text.splitlines():
-        # 筛选出每行中的有效字符
-        filtered_line = ''.join([char for char in line if char in valid_chars])
-        if filtered_line:
-            call_number_lines.append(filtered_line)
+    # 查找相似度最高的字母
+    max_similarity = 0
+    most_similar_char = None
+    for digit, (letter, similarity) in similarity_dict.items():
+        if char == digit and similarity > max_similarity and similarity > similarity_threshold:
+            max_similarity = similarity
+            most_similar_char = letter
 
-    # 返回一个包含所有行有效字符的列表
-    return call_number_lines
-
-if __name__ == '__main__':
-    image_path = './shuji.jpg'
-    call_Num = getSingleCallNum(hsv_get(image_path))
-    print("识别的索书号：", call_Num)
+    return most_similar_char
