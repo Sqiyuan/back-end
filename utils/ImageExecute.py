@@ -1,6 +1,8 @@
 import base64
 from dao.BaseDao import BaseDao
 import cv2
+from PIL import Image
+import io
 
 class BookDao(BaseDao):
     """
@@ -55,6 +57,22 @@ def image_to_base64(image_path):
         # 将 bytes 类型转换为字符串类型
         base64_encoded_str = base64_encoded.decode('utf-8')
         return base64_encoded_str
+
+def image2base64(image):
+    """
+    将图像转换为base64编码字符串
+    """
+    # 使用PIL加载图像
+    img = Image.fromarray(image)
+    # 创建一个BytesIO对象来保存图像数据
+    buffer = io.BytesIO()
+    # 将图像保存到BytesIO对象中
+    img.save(buffer, format='JPEG')
+    # 获取BytesIO对象中的二进制数据
+    img_bytes = buffer.getvalue()
+    # 将二进制数据转换为base64编码字符串
+    base64_str = base64.b64encode(img_bytes).decode('utf-8')
+    return base64_str
 
 def seq_to_filepath(filename, id, result_dir):
     """
