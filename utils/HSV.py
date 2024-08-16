@@ -1,7 +1,7 @@
 import cv2
 import numpy as np
 
-from utils.ImageExecute import image_to_base64
+from utils.ImageExecute import image2base64, image_to_base64
 from utils.OCR import send_post_request
 # from utils.OCR import send_post_request
 # from utils.ImageExecute import image_to_base64
@@ -85,9 +85,10 @@ def getSingleCallNum(image_path):
     """
     # 读取分割后的索书号区域图像
     image = cv2.imread(image_path)
-
     #hsv分割
     hsv_image = hsv_get(image)
+    if hsv_image.size == 0:
+        return None
     #图像处理
     pre_image = preprocess_image(hsv_image)
     #z转为base64

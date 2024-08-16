@@ -92,11 +92,8 @@ def wholeProcess():
                     continue
                 path = seq_to_filepath(name, key, result_dir)   # 构建文件路径
                 if os.path.exists(path):
-                    all_book_result_in_list_dict[key] = send_post_request(
-                        #整合hsv分割书标，将书脊路径传入后保存书标并返回路径
-                        image_to_base64(hsv_get(path))
-                    ).json()  # 发送请求并获取响应JSON  存储识别结果
-                    # print('finish ' + str(key))
+                    all_book_result_in_list_dict[key] = getSingleCallNum(path)
+
             all_book_result_in_dict[name] = all_book_result_in_list_dict  # 将单个文件的识别结果加入总结果字典
 
     # 从数据库获取书籍信息
@@ -109,12 +106,10 @@ def wholeProcess():
         ascii_results = []
 
         # 遍历字典中的键值对并存储 ASCII 码结果
-        for id, info_dict in list_dict.items():
-            if 'data' in info_dict:
-                data = info_dict['data']
+        for id, ascii in list_dict.items():
+            if ascii is not None:
                 # 获取当前书的 ASCII 码结果
-                current_ascii = [ord(c) for c in getSingleCallNum(data)]
-                ascii_results.append((id, current_ascii))
+                ascii_results.append((id, ascii))
             else:
                 # 如果 data 不存在，继续下一项
                 continue
