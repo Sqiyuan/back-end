@@ -112,6 +112,8 @@ def wholeProcess():
                 ascii_results.append((id, ascii))
             else:
                 # 如果 data 不存在，继续下一项
+                img_name = name + str(id) + '.jpg'
+                print(f"错误：没有得到ASCII码的书籍 {img_name}")
                 continue
 
         # 循环结束后，依次比较相邻书籍的 ASCII 码顺序
