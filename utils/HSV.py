@@ -3,8 +3,7 @@ import numpy as np
 
 from utils.ImageExecute import image2base64, image_to_base64
 from utils.OCR import send_post_request
-# from utils.OCR import send_post_request
-# from utils.ImageExecute import image_to_base64
+
 
 def hsv_get(image):
     """
@@ -71,12 +70,59 @@ def preprocess_image(image):
 
     # 去噪
     denoised_image = cv2.fastNlMeansDenoising(binary_image, None, 30, 7, 21)
-    # # 边缘增强
-    # kernel = np.ones((2, 2), np.uint8)
-    # edges_enhanced = cv2.dilate(denoised_image, kernel, iterations=1)  # 应用膨胀操作增强边缘
 
     return denoised_image
 
+def rotate_image_to_horizontal(image):
+    # 将图像转换为灰度图
+    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    
+    # 使用二值化处理
+    _, binary = cv2.threshold(gray, 128, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
+    
+    # 使用 Canny 边缘检测
+    edges = cv2.Canny(binary, 50, 150, apertureSize=3)
+    
+    # 查找轮廓
+    contours, _ = cv2.findContours(edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    
+    # 初始化旋转角度
+    angle = 0
+    for cnt in contours:
+        # 获取最小外接矩形
+        rect = cv2.minAreaRect(cnt)
+        (x, y), (w, h), rect_angle = rect
+        
+        # 选择角度为小于 45 度的角度
+        if w < h:
+            rect_angle = 90 + rect_angle
+        angle += rect_angle
+    
+    # 计算平均角度
+    angle /= len(contours)
+    print(angle)
+    # 判断是否需要旋转
+    if angle > 80:
+        angle = 0
+    else:
+        angle = -90
+    
+    # 旋转图像至水平
+    (h, w) = image.shape[:2]
+    center = (w // 2, h // 2)
+    M = cv2.getRotationMatrix2D(center, angle, 1.0)
+    # 计算旋转后的图像大小
+    abs_cos = abs(M[0, 0])
+    abs_sin = abs(M[0, 1])
+    new_w = int(h * abs_sin + w * abs_cos)
+    new_h = int(h * abs_cos + w * abs_sin)
+    
+    # Adjust the rotation matrix
+    M[0, 2] += (new_w / 2) - center[0]
+    M[1, 2] += (new_h / 2) - center[1]
+    rotated_image = cv2.warpAffine(image, M, (new_w, new_h), flags=cv2.INTER_CUBIC, borderMode=cv2.BORDER_REPLICATE)
+    
+    return rotated_image
 
 def getSingleCallNum(image_path):
     """
@@ -89,8 +135,9 @@ def getSingleCallNum(image_path):
     hsv_image = hsv_get(image)
     if hsv_image.size == 0:
         return None
+    rotate_image = rotate_image_to_horizontal(hsv_image)
     #图像处理
-    pre_image = preprocess_image(hsv_image)
+    pre_image = preprocess_image(rotate_image)
     #z转为base64
     base_64 = image2base64(pre_image)
     #OCR识别
