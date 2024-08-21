@@ -110,12 +110,12 @@ def wholeProcess():
             if ascii is not None:
                 # 获取当前书的 ASCII 码结果
                 ascii_results.append((id, ascii))
+                print(f"该{id}的ASCII码为:{ascii}")
             else:
                 # 如果 data 不存在，继续下一项
                 img_name = name + str(id) + '.jpg'
-                print(f"错误：没有得到ASCII码的书籍 {img_name}")
-                continue
-
+                print(f"错误:没有得到ASCII码的书籍 {img_name}")
+                
         # 循环结束后，依次比较相邻书籍的 ASCII 码顺序
         for i in range(1, len(ascii_results)):
             prev_id, prev_ascii = ascii_results[i - 1]
@@ -129,7 +129,7 @@ def wholeProcess():
                 if any(current > next for current, next in zip(current_ascii, next_ascii)):
                     result_with_error.append(current_id)
                     results_with_error[name] = result_with_error
-    print('rewrite to the img')
+    print('标记回原图')
 
     # 重绘图像，标记出存在疑问和错误的边界框
     for name in results_with_error.keys():
