@@ -154,7 +154,6 @@ def getSingleCallNum(image_path):
                 char = char.upper()#转为大写字母
                 if char.isupper() or char.isdigit() or char in "=-:./":
                     chars.append(char)
-    print("处理前：",chars)
 
     # 处理第一个字符
     if chars and not chars[0].isalpha():
@@ -162,7 +161,7 @@ def getSingleCallNum(image_path):
         most_similar_char = find_most_similar_char(chars[0])
         if most_similar_char is not None:
             chars[0] = most_similar_char
-            print("处理后：",chars)
+            
     # 将有效字符转换为ASCII码并添加到列表中
     ascii_codes.extend(ord(c) for c in chars)
     return ascii_codes
