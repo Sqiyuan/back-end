@@ -4,7 +4,6 @@ from ultralytics import YOLO
 from utils.ImageExecute import *
 from utils.HSV import *
 from utils.OCR import *
-from utils.Pic_pre import *
 
 dir = './img/'
 pre_dir = './img/pre/'  # 待处理图像目录
