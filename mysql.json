@@ -1,8 +1,16 @@
 {
-  "host":"127.0.0.1",
-  "user":"root",
-  "password":"123123",
-  "database":"bmanager",
-  "port":3306,
-  "charset":"utf8"
+  "host": "39.105.32.182",
+  "user": "bmanager",
+  "password": "123456",
+  "database": "bmanager",
+  "port": 3306,
+  "charset": "utf8"
 }
+// {
+//   "host":"127.0.0.1",
+//   "user":"root",
+//   "password":"123123",
+//   "database":"bmanager",
+//   "port":3306,
+//   "charset":"utf8"
+// }
