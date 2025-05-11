@@ -6,6 +6,7 @@ import os
 import cv2
 import numpy as np
 import shutil
+from paddleocr import PaddleOCR
 
 dir = './img/'  # 待处理图像目录
 result_dir = './runs/segment/predict/crops/book/'   # 预测结果保存目录
@@ -69,6 +70,13 @@ def image_to_base64(image_path):
         base64_encoded_str = base64_encoded.decode('utf-8')
         return base64_encoded_str
 
+def ocr_request(image_path):
+    ocr = PaddleOCR(lang='ch') # need to run only once to load model into memory
+    result = ocr.ocr(image_path, det=False, cls=False)
+    for idx in range(len(result)):
+        res = result[idx]
+    print("识别结果：", res)
+    return res
 
 def send_post_request(image_base64):
     """
@@ -76,7 +84,7 @@ def send_post_request(image_base64):
     携带Base64编码的图像数据
     """
     # 请求的URL
-    url = "http://127.0.0.1:8089/api/tr-run/"
+    url = "http://127.0.0.1:8080/api/tr-run/"
 
     # 请求参数，包含图片的 base64 值
     data = {
@@ -169,7 +177,7 @@ def draw_bounding_box(image_path, errors_box, question_box, output_path):
         y1 = int(y_center - height / 2)
         x2 = int(x_center + width / 2)
         y2 = int(y_center + height / 2)
-        cv2.rectangle(image, (x1, y1), (x2, y2), (0, 255, 0), thickness=10)
+        # cv2.rectangle(image, (x1, y1), (x2, y2), (0, 255, 0), thickness=10)
 
     cv2.imwrite(output_path, image)
 
@@ -196,7 +204,7 @@ def preProcess():
     for root, dirs, files in os.walk(dir):
         for r, filename in zip(results, files):
             # 初始化当前文件相关的变量
-
+            
             removed_id = []
             filename_without_suffix = filename.split('.')[-2]
             id_xlabel_dict = dict()
@@ -206,7 +214,8 @@ def preProcess():
                 if (element[2] > max_width):
                     # 移除超限文件并记录移除的ID
                     filepath = seq_to_filepath(filename_without_suffix, id, result_dir)
-                    print(id, element)
+                    
+                    print("pre流程", id, element)
                     print(filepath)
                     os.remove(filepath)
                     removed_id.append(id)
@@ -268,6 +277,7 @@ def wholeProcess():
 
         for id, info in list_dict.items():
             this_number_str, character = getSingleBookResult(info)  # 提取单个书籍的编号和字符信息
+            print("索书号, 书名", this_number_str, character)
             try:
                 this_number = int(this_number_str)  # 尝试转换编号为整数
             except ValueError as e:
@@ -367,7 +377,7 @@ def findBookProces(book_name):
                 this_number = -1  # 若转换失败，设置为-1
             
             this_number = findLabelFromName(resultSet, character)
-
+            print("找书")
             print(str(this_number), character)
             length = len(character)
             if length == 0:
